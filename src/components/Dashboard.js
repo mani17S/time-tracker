@@ -1,105 +1,86 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import TimerCard from "./TimerCard";
 
-function Dashboard() {
-  const [timers, setTimers] = useState(() => {
-    const saved = localStorage.getItem("timers");
-    return saved ? JSON.parse(saved) : ["DSA Study", "Gym"];
-  });
+function Dashboard({ user, onLogout }) {
+  const [timers, setTimers] = useState(user.timers);
+  const [nextId, setNextId] = useState(user.nextId);
+  const [input, setInput]   = useState("");
+  const [error, setError]   = useState("");
 
-  const [newTimer, setNewTimer] = useState("");
-
-  useEffect(() => {
-    localStorage.setItem("timers", JSON.stringify(timers));
-  }, [timers]);
-
-  
-  const formatName = (name) => {
-    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-  };
+  const firstName = user.name.split(" ")[0];
+  const initials  = user.name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 
   const addTimer = () => {
-    const trimmed = newTimer.trim();
-
-    if (
-      trimmed !== "" &&
-      !timers.some((t) => t.toLowerCase() === trimmed.toLowerCase())
-    ) {
-      setTimers([...timers, formatName(trimmed)]);
+    const name = input.trim().toUpperCase();
+    if (!name) return;
+    if (timers.some(t => t.name === name)) {
+      setError(`"${name}" already exists!`);
+      return;
     }
-
-    setNewTimer("");
-  };
-
-  const deleteTimer = (indexToDelete) => {
-    const updated = timers.filter((_, index) => index !== indexToDelete);
-    setTimers(updated);
+    setTimers([...timers, { id: nextId, name, elapsed: 0 }]);
+    setNextId(nextId + 1);
+    setInput("");
+    setError("");
   };
 
   return (
-    <div style={styles.container}>
-      <h2>My Timers</h2>
+    <div style={{ maxWidth: "960px", margin: "0 auto" }}>
 
-      {/* Simple Input */}
-      <div style={styles.inputWrapper}>
+  
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+        <span style={{ fontWeight: "700", fontSize: "1rem", color: "#64748b" }}>
+          Hi, {firstName} 👋
+        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#1e293b", padding: "6px 14px", borderRadius: "20px", fontSize: "13px" }}>
+          <span style={{ background: "#2563eb", borderRadius: "50%", width: 28, height: 28, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "700" }}>
+            {initials}
+          </span>
+          <span>{user.name}</span>
+          <button
+            onClick={onLogout}
+            style={{ background: "transparent", border: "1px solid #334155", color: "#94a3b8", padding: "4px 10px", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+
+      
+      <p style={{ fontSize: "11px", letterSpacing: "2px", color: "#64748b", marginBottom: "1.5rem" }}>ACTIVITIES</p>
+
+      
+      <div style={{ display: "flex", justifyContent: "center", gap: "10px", marginBottom: "0.5rem" }}>
         <input
-          type="text"
-          placeholder="Enter task name"
-          value={newTimer}
-          onChange={(e) => setNewTimer(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && addTimer()}
-          style={styles.input}
+          placeholder="New task name..."
+          value={input}
+          onChange={e => { setInput(e.target.value); setError(""); }}
+          onKeyDown={e => e.key === "Enter" && addTimer()}
+          style={{ padding: "10px 16px", borderRadius: "8px", border: `1px solid ${error ? "#f87171" : "#2d3748"}`, background: "#1e293b", color: "white", fontSize: "14px", width: "260px" }}
         />
-
-        <button style={styles.addBtn} onClick={addTimer}>
-          Add
+        <button
+          onClick={addTimer}
+          style={{ background: "#3b82f6", border: "none", padding: "10px 20px", borderRadius: "8px", color: "white", fontWeight: "600", cursor: "pointer" }}
+        >
+          + Add Task
         </button>
       </div>
 
-      {timers.length === 0 && <p>No timers yet. Add one!</p>}
+      
+      {error && <p style={{ color: "#f87171", fontSize: "13px", marginBottom: "1rem" }}>{error}</p>}
 
-      <div style={styles.grid}>
-        {timers.map((t, index) => (
+      
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", justifyContent: "center", marginTop: "1.5rem" }}>
+        {timers.map(t => (
           <TimerCard
-            key={index}
-            name={t}
-            onDelete={() => deleteTimer(index)}
+            key={t.id}
+            name={t.name}
+            onDelete={() => setTimers(timers.filter(x => x.id !== t.id))}
           />
         ))}
       </div>
+
     </div>
   );
 }
-
-const styles = {
-  container: {
-    textAlign: "center",
-  },
-  inputWrapper: {
-    display: "flex",
-    justifyContent: "center",
-    marginBottom: "20px",
-  },
-  input: {
-    padding: "10px",
-    borderRadius: "6px 0 0 6px",
-    border: "1px solid #ccc",
-    outline: "none",
-    width: "200px",
-  },
-  addBtn: {
-    padding: "10px 15px",
-    borderRadius: "0 6px 6px 0",
-    border: "none",
-    background: "#4CAF50",
-    color: "white",
-    cursor: "pointer",
-  },
-  grid: {
-    display: "flex",
-    flexWrap: "wrap",
-    justifyContent: "center",
-  },
-};
 
 export default Dashboard;
