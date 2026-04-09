@@ -71,7 +71,92 @@ exports.pauseTimer = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+exports.deleteTimer = async (req, res) => {
+  try {
+    const { id } = req.params;
 
+    // Check if timer exists and belongs to user
+    const timer = await db('timers')
+      .where({ 
+        id: id, 
+        user_id: req.user.userId 
+      })
+      .first();
+
+    if (!timer) {
+      return res.status(404).json({ error: "Timer not found" });
+    }
+
+    // Delete all sessions for this timer first
+    await db('sessions')
+      .where({ timer_id: id })
+      .del();
+
+    // Delete the timer
+    await db('timers')
+      .where({ id: id })
+      .del();
+
+    res.json({ message: "Timer deleted successfully" });
+  } catch (err) {
+    console.error('Error deleting timer:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.resetTimer = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if timer exists and belongs to user
+    const timer = await db('timers')
+      .where({ 
+        id: id, 
+        user_id: req.user.userId 
+      })
+      .first();
+
+    if (!timer) {
+      return res.status(404).json({ error: "Timer not found" });
+    }
+
+    // If timer is currently running, stop it first
+    const activeSession = await db('sessions')
+      .where({ timer_id: id, user_id: req.user.userId })
+      .whereNull('end_time')
+      .first();
+
+    if (activeSession) {
+      // Pause the running timer
+      const endTime = new Date();
+      const duration = Math.floor(
+        (endTime - new Date(activeSession.start_time)) / 1000
+      );
+
+      await db('sessions')
+        .where({ id: activeSession.id })
+        .update({
+          end_time: endTime,
+          duration_seconds: duration
+        });
+    }
+
+    // Delete all sessions for this timer (resets total time to 0)
+    await db('sessions')
+      .where({ timer_id: id, user_id: req.user.userId })
+      .del();
+
+    // Reset duration_seconds in timers table
+    await db('timers')
+      .where({ id: id })
+      .update({ duration_seconds: 0 });
+
+    res.json({ message: "Timer reset successfully" });
+  } catch (err) {
+    console.error('Error resetting timer:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
 exports.getTotalTime = async (req, res) => {
   try {
     const { id } = req.params;
@@ -128,6 +213,20 @@ exports.getWeeklyTime = async (req, res) => {
     });
 
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+exports.getUserTimers = async (req, res) => {
+  try {
+    const timers = await db('timers')
+      .where({ user_id: req.user.userId })
+      .select('*')
+      .orderBy('created_at', 'desc');
+    
+    // Always return an array, even if empty
+    res.json(timers || []);
+  } catch (err) {
+    console.error('Error fetching timers:', err);
     res.status(500).json({ error: err.message });
   }
 };

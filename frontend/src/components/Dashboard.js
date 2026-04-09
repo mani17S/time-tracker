@@ -1,32 +1,72 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import TimerCard from "./TimerCard";
+import { getTimers, createTimer, deleteTimer } from "../services/api";
 
 function Dashboard({ user, onLogout }) {
-  const [timers, setTimers] = useState(user.timers);
-  const [nextId, setNextId] = useState(user.nextId);
-  const [input, setInput]   = useState("");
-  const [error, setError]   = useState("");
+  const [timers, setTimers] = useState([]);
+  const [input, setInput] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const firstName = user.name.split(" ")[0];
-  const initials  = user.name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+  const firstName = user.name?.split(" ")[0] || user.name;
+  const initials = user.name?.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) || "U";
 
-  const addTimer = () => {
+  // Fetch timers from backend on load
+  useEffect(() => {
+    fetchTimers();
+  }, []);
+
+  const fetchTimers = async () => {
+    try {
+      setLoading(true);
+      const response = await getTimers();
+      setTimers(response.data);
+    } catch (err) {
+      console.error("Failed to fetch timers:", err);
+      setError("Failed to load timers");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addTimer = async () => {
     const name = input.trim().toUpperCase();
     if (!name) return;
+    
     if (timers.some(t => t.name === name)) {
       setError(`"${name}" already exists!`);
       return;
     }
-    setTimers([...timers, { id: nextId, name, elapsed: 0 }]);
-    setNextId(nextId + 1);
-    setInput("");
-    setError("");
+    
+    try {
+      const response = await createTimer(name);
+      setTimers([...timers, response.data]);
+      setInput("");
+      setError("");
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to create timer");
+    }
   };
+
+  const handleDeleteTimer = async (id) => {
+    try {
+      await deleteTimer(id);
+      setTimers(timers.filter(t => t.id !== id));
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to delete timer");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: "center", padding: "2rem" }}>
+        Loading timers...
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: "960px", margin: "0 auto" }}>
-
-  
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
         <span style={{ fontWeight: "700", fontSize: "1rem", color: "#64748b" }}>
           Hi, {firstName} 👋
@@ -45,10 +85,8 @@ function Dashboard({ user, onLogout }) {
         </div>
       </div>
 
-      
       <p style={{ fontSize: "11px", letterSpacing: "2px", color: "#64748b", marginBottom: "1.5rem" }}>ACTIVITIES</p>
 
-      
       <div style={{ display: "flex", justifyContent: "center", gap: "10px", marginBottom: "0.5rem" }}>
         <input
           placeholder="New task name..."
@@ -65,20 +103,18 @@ function Dashboard({ user, onLogout }) {
         </button>
       </div>
 
-      
       {error && <p style={{ color: "#f87171", fontSize: "13px", marginBottom: "1rem" }}>{error}</p>}
 
-      
       <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", justifyContent: "center", marginTop: "1.5rem" }}>
         {timers.map(t => (
           <TimerCard
             key={t.id}
+            id={t.id}
             name={t.name}
-            onDelete={() => setTimers(timers.filter(x => x.id !== t.id))}
+            onDelete={() => handleDeleteTimer(t.id)}
           />
         ))}
       </div>
-
     </div>
   );
 }
