@@ -9,6 +9,7 @@ exports.register = async (req, res) => {
     // hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Create user
     const user = await db('users')
       .insert({
         name,
@@ -16,6 +17,16 @@ exports.register = async (req, res) => {
         password_hash: hashedPassword
       })
       .returning('*');
+
+    // ADD DEFAULT TIMERS FOR NEW USER
+    const defaultTimers = ['DSA', 'GYM', 'COLLEGE'];
+    const timersToInsert = defaultTimers.map(timerName => ({
+      name: timerName,
+      user_id: user[0].id,
+      duration_seconds: 0
+    }));
+
+    await db('timers').insert(timersToInsert);
 
     const { password_hash, ...safeUser } = user[0];
     res.status(201).json(safeUser);
@@ -45,7 +56,7 @@ exports.login = async (req, res) => {
     // create token
     const token = jwt.sign(
       { userId: user.id },
-      process.env.JWT_SECRET || "secretkey",  // Use env variable or fallback
+      process.env.JWT_SECRET || "secretkey",
       { expiresIn: "1h" }
     );
 
