@@ -30,23 +30,28 @@ function Dashboard({ user, onLogout }) {
   };
 
   const addTimer = async () => {
-    const name = input.trim().toUpperCase();
-    if (!name) return;
-    
-    if (timers.some(t => t.name === name)) {
-      setError(`"${name}" already exists!`);
-      return;
-    }
-    
-    try {
-      const response = await createTimer(name);
-      setTimers([...timers, response.data]);
-      setInput("");
-      setError("");
-    } catch (err) {
-      setError(err.response?.data?.error || "Failed to create timer");
-    }
-  };
+  const name = input.trim().toUpperCase();
+  
+  // Add validation for empty input
+  if (!name) {
+    setError("Please enter a task name!");
+    return;
+  }
+  
+  if (timers.some(t => t.name === name)) {
+    setError(`"${name}" already exists!`);
+    return;
+  }
+  
+  try {
+    const response = await createTimer(name);
+    setTimers([...timers, response.data]);
+    setInput("");
+    setError("");
+  } catch (err) {
+    setError(err.response?.data?.error || "Failed to create timer");
+  }
+};
 
   const handleDeleteTimer = async (id) => {
     try {
